@@ -46,6 +46,13 @@ func permissiveCORS(next http.Handler) http.Handler {
 	})
 }
 
+func setNoSniffHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
+	responseWriter.Header().Set("X-Content-Type-Options","nosniff")
+	next.ServeHTTP(responseWriter, request)
+	})
+}
+
 func cspNonce(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
 		nonceBytes := make([]byte, 16)
