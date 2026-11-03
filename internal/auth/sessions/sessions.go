@@ -54,6 +54,7 @@ func SetCookie(responseWriter http.ResponseWriter, session accounts.Session) {
 		Name:  CookieName,
 		Value: session.Token,
 		Path:  "/",
+		Expires: session.ExpiresAt,
 	})
 }
 
