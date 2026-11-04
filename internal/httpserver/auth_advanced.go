@@ -291,7 +291,7 @@ func (handler *authHandler) RequestPasswordReset(responseWriter http.ResponseWri
 			"success":       false,
 			"failureReason": "email not found",
 		})
-		if err := handler.renderPasswordResetRequest(responseWriter, http.StatusNotFound, false, "No account exists for that email.", ""); err != nil {
+		if err := handler.renderPasswordResetRequest(responseWriter, http.StatusOK, true, "", ""); err != nil {
 			handler.internalError(responseWriter, request, err)
 		}
 		return
