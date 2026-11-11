@@ -9,6 +9,7 @@ import (
 	"math"
 	"net"
 	"net/http"
+	"net/url"
 	"slices"
 	"strconv"
 	"strings"
@@ -48,9 +49,46 @@ func permissiveCORS(next http.Handler) http.Handler {
 
 func setNoSniffHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
-	responseWriter.Header().Set("X-Content-Type-Options","nosniff")
-	next.ServeHTTP(responseWriter, request)
+		responseWriter.Header().Set("X-Content-Type-Options", "nosniff")
+		next.ServeHTTP(responseWriter, request)
 	})
+}
+
+func validateOrigin(origin string, renderer *templates.Renderer) middleware {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
+			if request.Method == http.MethodPost {
+				providedOrigin, found := getOriginFromReferer(request)
+				if !found || providedOrigin != origin {
+					if err := httpx.RespondWithErrorPage(responseWriter, renderer, http.StatusForbidden, "Forbidden", "Request did NOT come from Bearly Secure."); err != nil {
+						http.Error(responseWriter, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+					}
+					return
+				}
+			}
+			next.ServeHTTP(responseWriter, request)
+		})
+	}
+}
+
+func getOriginFromReferer(request *http.Request) (string, bool) {
+	origin := request.Header.Get("Origin")
+	if origin != "" {
+		return origin, true
+	}
+	referer := request.Header.Get("Referer")
+	if referer == "" {
+		return "", false
+	}
+	u, err := url.Parse(referer)
+	if err != nil {
+		return "", false
+	}
+	if u.Scheme == "" || u.Host == "" {
+		return "", false
+	}
+	origin = fmt.Sprintf("%s://%s", u.Scheme, u.Host)
+	return origin, true
 }
 
 func cspNonce(next http.Handler) http.Handler {
