@@ -1,6 +1,8 @@
 package sessions
 
 import (
+	"crypto/subtle"
+	"encoding/base64"
 	"net/http"
 	"net/url"
 	"time"
@@ -37,8 +39,19 @@ func RequireWithReturnTo(responseWriter http.ResponseWriter, request *http.Reque
 	return accounts.CurrentSession{}, false, nil
 }
 
-func CSRFTokensMatch(_, _ string) bool {
-	return true
+func CSRFTokensMatch(expectedToken, actualToken string) bool {
+	if len(expectedToken) != len(actualToken) {
+		return false
+	}
+	expectedTokenBytes, err := base64.RawURLEncoding.DecodeString(expectedToken)
+	if err != nil {
+		return false
+	}
+	actualTokenBytes, err := base64.RawURLEncoding.DecodeString(actualToken)
+	if err != nil {
+		return false
+	}
+	return (subtle.ConstantTimeCompare(expectedTokenBytes, actualTokenBytes) == 1)
 }
 
 func HasRecentAuthentication(current accounts.CurrentSession, now time.Time) bool {
@@ -51,24 +64,24 @@ func HasRecentAuthentication(current accounts.CurrentSession, now time.Time) boo
 
 func SetCookie(responseWriter http.ResponseWriter, session accounts.Session) {
 	http.SetCookie(responseWriter, &http.Cookie{
-		Name:  CookieName,
-		Value: session.Token,
-		Path:  "/",
-		Expires: session.ExpiresAt,
+		Name:     CookieName,
+		Value:    session.Token,
+		Path:     "/",
+		Expires:  session.ExpiresAt,
 		HttpOnly: true,
-		Secure: true,
+		Secure:   true,
 		SameSite: http.SameSiteLaxMode,
 	})
 }
 
 func ClearCookie(responseWriter http.ResponseWriter) {
 	http.SetCookie(responseWriter, &http.Cookie{
-		Name:    CookieName,
-		Path:    "/",
-		Expires: time.Unix(0, 0),
-		MaxAge:  -1,
+		Name:     CookieName,
+		Path:     "/",
+		Expires:  time.Unix(0, 0),
+		MaxAge:   -1,
 		HttpOnly: true,
-		Secure: true,
+		Secure:   true,
 		SameSite: http.SameSiteLaxMode,
 	})
 }
