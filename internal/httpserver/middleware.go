@@ -54,6 +54,15 @@ func setNoSniffHeaders(next http.Handler) http.Handler {
 	})
 }
 
+func contentSecurityPolicy(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
+		nonceValue := httpx.CSPNonce(request.Context())
+		policy := fmt.Sprintf("default-src 'self'; script-src 'self' 'nonce-%s'; style-src 'self'; img-src 'self' data:; frame-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'", nonceValue)
+		responseWriter.Header().Set("Content-Security-Policy", policy)
+		next.ServeHTTP(responseWriter, request)
+	})
+}
+
 func validateOrigin(origin string, renderer *templates.Renderer) middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
