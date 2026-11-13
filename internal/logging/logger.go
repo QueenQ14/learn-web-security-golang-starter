@@ -32,6 +32,7 @@ func (logger *Logger) Close() error {
 }
 
 func (logger *Logger) Event(eventName string, fields map[string]any) error {
+	fields = redact(fields)
 	record := map[string]any{
 		"timestamp": logger.now().UTC().Format("2006-01-02T15:04:05.000Z"),
 		"event":     eventName,
@@ -44,4 +45,25 @@ func (logger *Logger) Event(eventName string, fields map[string]any) error {
 		return fmt.Errorf("write application log: %w", err)
 	}
 	return nil
+}
+
+var sensitiveFields = map[string]struct{}{
+	"sessionId":   {},
+	"resetToken":  {},
+	"secret":      {},
+	"resetLink":   {},
+	"adminNotes":  {},
+	"storagePath": {},
+}
+
+func redact(fields map[string]any) map[string]any {
+	redacted := make(map[string]any, len(fields))
+	for name, value := range fields {
+		if _, sensitive := sensitiveFields[name]; sensitive {
+			redacted[name] = "[REDACTED]"
+			continue
+		}
+		redacted[name] = value
+	}
+	return redacted
 }
